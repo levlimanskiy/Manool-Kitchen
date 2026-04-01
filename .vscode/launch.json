@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Python Debugger (venv, PowerShell)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+            "env": {
+                "VIRTUAL_ENV": "${workspaceFolder}\\.venv",
+                "PYTHONPATH": "${workspaceFolder}\\src"
+            }
+        }
+    ]
+}
