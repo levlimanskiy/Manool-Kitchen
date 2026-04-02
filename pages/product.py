@@ -87,33 +87,12 @@ else:
 
     df_rec = df_rec.sort_values('score_raw', ascending=False).head(10)
 
-    # Блок 1: что приготовить?
-    st.subheader("🍳 Что можно приготовить")
-
-    def score_emoji(score):
-        if score == 1.0:
-            return "🟢"
-        elif score >= 0.5:
-            return "🟡"
-        else:
-            return "🔴"
+    # Блок 1: меню
+    st.subheader("📋 Меню")
 
     if 'menu' not in st.session_state:
         st.session_state['menu'] = []
-    
-    for _, row in df_rec.iterrows():
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write(f"{score_emoji(row['score_raw'])} **{row['dish'].capitalize()}** — {row['score']}")
-        with col2:
-            if st.button("+ В меню", key=f"add_{row['rec_id']}"):
-                if row['dish'] not in st.session_state['menu']:
-                    st.session_state['menu'].append(row['dish'])
-    
-    st.divider()
 
-    # Блок 2: меню
-    st.subheader("📋 Меню")
     quick_add = st.selectbox(
         "Добавить блюдо в меню:",
         options=["—"] + sorted(df_rec['dish'].tolist()),
@@ -137,6 +116,29 @@ else:
                 if st.button("✕", key=f"del_{dish}"):
                     st.session_state['menu'].remove(dish)
                     st.rerun()
+
+    # Блок 2: что приготовить?
+    st.subheader("🍳 Что можно приготовить")
+
+    def score_emoji(score):
+        if score == 1.0:
+            return "🟢"
+        elif score >= 0.5:
+            return "🟡"
+        else:
+            return "🔴"
+    
+    for _, row in df_rec.iterrows():
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"{score_emoji(row['score_raw'])} **{row['dish'].capitalize()}** — {row['score']}")
+        with col2:
+            if st.button("+ В меню", key=f"add_{row['rec_id']}"):
+                if row['dish'] not in st.session_state['menu']:
+                    st.session_state['menu'].append(row['dish'])
+                    st.rerun()
+    
+    st.divider()
 
     # Блок 3: список покупок
     st.subheader("🛒 Список покупок")
