@@ -1,31 +1,24 @@
 import streamlit as st
 from datetime import date
-import calendar
-import locale
 from data_loader import get_data, get_categories, write_row
 import pandas as pd
-import numpy as np
 
-locale.setlocale(locale.LC_TIME, 'ru_RU')
-
-st.markdown("# Уточнить транзакции 💰")
+st.markdown("# 🧮 Внести транзакцию")
 
 # Подгрузка данных из session_state
 if 'period' in st.session_state:
     period = st.session_state['period']
 else:
-    period = (date.today(), date.today().replace(day=1))
+    period = (date.today().replace(day=1), date.today())
 
 df_raw = get_data()
 df_filt = df_raw[(df_raw['date']>= period[0]) & (df_raw['date']<= period[1])]
 
-df_in = df_filt[df_raw['type'] == 1]
-df_out = df_filt[df_raw['type'] == 0]
+df_in = df_filt[df_filt['type'] == 1]
+df_out = df_filt[df_filt['type'] == 0]
 
 cat_in = df_raw[df_raw['type'] == 1]['category'].unique()
 cat_out = df_raw[df_raw['type'] == 0]['category'].unique()
-
-st.subheader("Внесение расхода/дохода")
 
 type_choice = st.radio(
     "Тип операции:",
@@ -83,23 +76,28 @@ with col2:
             avg = daily_total / count
             st.metric("Прогнозируемый средний расход:", f"{avg:,.2f} ₽".replace(",", " "))
 
-if st.button("🚀 Внести в базу", use_container_width=True):
+if st.button("🚀 Внести!", use_container_width=True):
     df_cats = get_categories()
     cat_map = dict(zip(df_cats['category'], df_cats["category_id"]))
     selected_cat_id = cat_map.get(f_cat)
     
     new_row = pd.DataFrame([{
-    "id": int(df_raw['id'].max() + 1) if not df_raw.empty else 1,
-    "type": 1 if is_income else 0,
-    "date": f_date.strftime('%d.%m.%Y'), # Сохраняем как текст в твоем формате
-    "amount": float(f_amount),
-    "category_id": int(selected_cat_id), # type: ignore
-    "info": f_info
+        "id": int(df_raw['id'].max() + 1) if not df_raw.empty else 1,
+        "type": 1 if is_income else 0,
+        "date": f_date.strftime('%d.%m.%Y'), # Сохраняем как текст в твоем формате
+        "amount": float(f_amount),
+        "category_id": int(selected_cat_id), # type: ignore
+        "info": f_info
     }])
 
     if write_row(new_row):
-        st.success(f"✅ Успешно!")
         st.cache_data.clear()
-        #st.rerun()
+        st.session_state['success'] = True
+        st.rerun()
     else:
         st.error('Ошибка отправки!')
+
+if st.session_state.get('success'):
+    st.success("✅ Успешно!")
+    del st.session_state['success']
+    

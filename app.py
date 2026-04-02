@@ -1,7 +1,4 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
-import os
 
 st.set_page_config(page_title="Бюджет Манулиного Домохозяйства", page_icon="📈")
 
@@ -15,11 +12,12 @@ with st.sidebar:
 
 # Define the pages
 budget = st.Page("pages/budget.py", title="Бюджет", icon="🏠")
-trans = st.Page("pages/trans.py", title="Уточнить транзакции", icon="💰")
+trans = st.Page("pages/trans.py", title="Внести транзакцию", icon="🧮")
+table = st.Page("pages/table.py", title="Список транзакций", icon="📋")
 product = st.Page("pages/product.py", title="Продукты", icon = "🛒")
 
 # Set up navigation
-pg = st.navigation([budget, trans, product])
+pg = st.navigation([budget, trans, table, product])
 
 # Run the selected page
 pg.run()

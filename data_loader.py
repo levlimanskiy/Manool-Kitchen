@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
 from streamlit_gsheets import GSheetsConnection
 
 sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
@@ -8,8 +7,8 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 @st.cache_data(ttl=1200)
 def get_data():
-    df_trans = conn.read(spreadsheet=sheet_url, worksheet="transactions")
-    df_cats = conn.read(spreadsheet=sheet_url, worksheet="categories")
+    df_trans = conn.read(spreadsheet=sheet_url, worksheet="transactions", ttl=0)
+    df_cats = conn.read(spreadsheet=sheet_url, worksheet="categories", ttl=0)
 
     df_trans['date'] = pd.to_datetime(df_trans['date'], dayfirst=True).dt.date
     
@@ -21,7 +20,7 @@ def get_data():
 
 @st.cache_data(ttl=1200)
 def get_categories():
-    df_cats = conn.read(spreadsheet=sheet_url, worksheet="categories")
+    df_cats = conn.read(spreadsheet=sheet_url, worksheet="categories", ttl=0)
     
     if not df_cats.empty:
         return df_cats
@@ -29,7 +28,6 @@ def get_categories():
     return pd.DataFrame() 
 
 def write_row(row):
-    conn = st.connection("gsheets", type=GSheetsConnection)
     df_trans = conn.read(spreadsheet=sheet_url, worksheet="transactions", ttl=0)
     upd = pd.concat([df_trans, row], ignore_index=True)
     try:
@@ -37,5 +35,39 @@ def write_row(row):
         return True
     except Exception as e:
         return False
+
+def update_rows(df_upd, df_cats):
+    df_trans = conn.read(spreadsheet=sheet_url, worksheet="transactions", ttl=0)
+
+    cat_map = dict(zip(df_cats['category'], df_cats['category_id']))
+    df_upd = df_upd.copy()
+    df_upd['category_id'] = df_upd['category'].map(cat_map)
+
+    df_trans = df_trans.set_index('id')
+    df_upd = df_upd.set_index('id')
+    cols_to_update = ['date', 'amount', 'info', 'category_id']
+    df_trans.loc[df_upd.index, cols_to_update] = df_upd[cols_to_update]
+    df_trans = df_trans.reset_index()
+
+    df_trans['date'] = pd.to_datetime(df_trans['date'], dayfirst=True).dt.strftime('%d.%m.%Y')
+
+    try:
+        conn.update(worksheet="transactions", data = df_trans)
+        return True
+    except Exception as e:
+        return False
+    
+def delete_rows(ids: list):
+    df_trans = conn.read(spreadsheet=sheet_url, worksheet="transactions", ttl=0)
+    df_trans = df_trans[~df_trans['id'].isin(ids)]
+    try:
+        conn.update(worksheet="transactions", data=df_trans)
+        return True
+    except Exception as e:
+        return False
+
+
+
+
 
     
