@@ -66,7 +66,25 @@ def delete_rows(ids: list):
     except Exception as e:
         return False
 
+@st.cache_data(ttl=1200)
+def get_prods():
+    df_ingr = conn.read(spreadsheet=sheet_url, worksheet='ingredients')
+    df_rec = conn.read(spreadsheet=sheet_url, worksheet='recipes')
+    return df_ingr, df_rec
 
+def save_ingredients(df):
+    try:
+        conn.update(worksheet="ingredients", data=df)
+        return True
+    except Exception as e:
+        return False
+
+def save_recipes(df):
+    try:
+        conn.update(worksheet="recipes", data=df)
+        return True
+    except Exception as e:
+        return False
 
 
 

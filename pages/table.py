@@ -41,7 +41,13 @@ period_choice = st.date_input(
     format="DD.MM.YYYY",
 )
 
+if len(period_choice) != 2:
+    st.warning('Выберите конечный период!')
+    st.stop()
+
+
 start_date, end_date = period_choice # type: ignore
+
 
 # Грузим данные
 df_raw = get_data()
