@@ -85,7 +85,7 @@ else:
         df_rec['prod_list'].apply(lambda x: pd.Series(score_recipe(x)))
     )
 
-    df_rec = df_rec.sort_values('score_raw', ascending=False).head(10)
+    df_rec_10 = df_rec.sort_values('score_raw', ascending=False).head(10)
 
     # Блок 1: меню
     st.subheader("📋 Меню")
@@ -128,7 +128,7 @@ else:
         else:
             return "🔴"
     
-    for _, row in df_rec.iterrows():
+    for _, row in df_rec_10.iterrows():
         col1, col2 = st.columns(2)
         with col1:
             st.write(f"{score_emoji(row['score_raw'])} **{row['dish'].capitalize()}** — {row['score']}")
