@@ -9,37 +9,63 @@ edit_mode = st.toggle("✏️ Редактирование списка ингр
 
 if edit_mode:
     st.subheader("🥗 Ингредиенты")
-    edited_ingr = st.data_editor(
-        df_ingr,
-        use_container_width=True,
-        hide_index=True,
-        num_rows="dynamic",
-        column_config={
-            "ingr_id": None,
-            "ingr": st.column_config.TextColumn("Ингредиент"),
-        }
-    )
-    st.subheader("🍳 Рецепты")
-    edited_rec = st.data_editor(
-        df_rec,
-        use_container_width=True,
-        hide_index=True,
-        num_rows="dynamic",
-        column_config={
-            "rec_id": None,
-            "dish": st.column_config.TextColumn("Блюдо"),
-            "prod_list": st.column_config.TextColumn("Ингредиенты (через запятую)"),
-        }
-    )
-    if st.button("💾 Сохранить", use_container_width=True):
-        ok1 = save_ingredients(edited_ingr)
-        ok2 = save_recipes(edited_rec)
-        if ok1 and ok2:
-            st.cache_data.clear()
-            st.session_state['success'] = True
-            st.rerun()
+    new_ingr = st.text_input("Новый ингредиент:")
+    on_list = False
+    if new_ingr.strip():
+        if new_ingr.strip().lower() in df_ingr['ingr'].str.lower().values:
+            st.warning(f"**{new_ingr}** уже есть в списке.")
+            if st.button("🗑️ Удалить ингредиент", use_container_width=True):
+                updated = df_ingr[df_ingr['ingr'].str.lower() != new_ingr.strip().lower()]
+                if save_ingredients(updated):
+                    st.cache_data.clear()
+                    st.session_state['success'] = True
+                    st.rerun()
+                else:
+                    st.error("Ошибка удаления!")
         else:
-            st.error("Ошибка сохранения!")
+            st.success(f"**{new_ingr}** можно добавить.")
+            if st.button("➕ Добавить ингредиент", use_container_width=True):
+                new_id = int(df_ingr['ingr_id'].max()) + 1
+                new_row = pd.DataFrame([{'ingr_id': new_id, 'ingr': new_ingr.strip()}])
+                updated = pd.concat([df_ingr, new_row], ignore_index=True)
+                if save_ingredients(updated):
+                    st.cache_data.clear()
+                    st.session_state['success'] = True
+                    st.rerun()
+                else:
+                    st.error("Ошибка сохранения!")
+    st.divider()
+
+    st.subheader("🍳 Рецепты")
+    new_dish = st.text_input("Название блюда:")
+    new_prods = st.text_input("Ингредиенты (через запятую):")
+    if new_dish.strip():
+        exists = new_dish.strip().lower() in df_rec['dish'].str.lower().values
+        if exists:
+            st.warning(f"**{new_dish}** уже есть в списке.")
+            if st.button("🗑️ Удалить рецепт", use_container_width=True):
+                updated = df_rec[df_rec['dish'].str.lower() != new_dish.strip().lower()]
+                if save_recipes(updated):
+                    st.cache_data.clear()
+                    st.session_state['success'] = True
+                    st.rerun()
+                else:
+                    st.error("Ошибка удаления!")
+        else:
+            if not new_prods.strip():
+                st.warning("Напишите список ингредиентов!")
+            else:
+                st.success(f"**{new_dish}** можно добавить.")
+                if st.button("➕ Добавить рецепт", use_container_width=True):
+                    new_id = int(df_rec['rec_id'].max()) + 1
+                    new_row = pd.DataFrame([{'rec_id': new_id, 'dish': new_dish.strip(), 'prod_list': new_prods.strip()}])
+                    updated = pd.concat([df_rec, new_row], ignore_index=True)
+                    if save_recipes(updated):
+                        st.cache_data.clear()
+                        st.session_state['success'] = True
+                        st.rerun()
+                    else:
+                        st.error("Ошибка сохранения!")
 
     if st.session_state.get('success'):
         st.success("✅ Сохранено!")
@@ -52,14 +78,14 @@ else:
         if not needed:
             return 0.0, needed
         match = needed & available
-        return len(match) / len(needed), needed
+        return f"{len(match)} / {len(needed)}", len(match) / len(needed), needed
 
     df_rec = df_rec.copy()
-    df_rec[['score', 'needed_set']] = pd.DataFrame(
+    df_rec[['score', 'score_raw', 'needed_set']] = pd.DataFrame(
         df_rec['prod_list'].apply(lambda x: pd.Series(score_recipe(x)))
     )
 
-    df_rec = df_rec.sort_values('score', ascending=False).head(10)
+    df_rec = df_rec.sort_values('score_raw', ascending=False).head(10)
 
     # Блок 1: что приготовить?
     st.subheader("🍳 Что можно приготовить")
@@ -76,12 +102,10 @@ else:
         st.session_state['menu'] = []
     
     for _, row in df_rec.iterrows():
-        col1, col2, col3 = st.columns([1, 6, 2])
+        col1, col2 = st.columns(2)
         with col1:
-            st.write(score_emoji(row['score']))
+            st.write(f"{score_emoji(row['score_raw'])} **{row['dish'].capitalize()}** — {row['score']}")
         with col2:
-            st.write(f"**{row['dish']}** — {int(row['score'] * 100)}%")
-        with col3:
             if st.button("+ В меню", key=f"add_{row['rec_id']}"):
                 if row['dish'] not in st.session_state['menu']:
                     st.session_state['menu'].append(row['dish'])
@@ -90,13 +114,25 @@ else:
 
     # Блок 2: меню
     st.subheader("📋 Меню")
+    quick_add = st.selectbox(
+        "Добавить блюдо в меню:",
+        options=["—"] + sorted(df_rec['dish'].tolist()),
+    )
+    if quick_add != "—":
+        if quick_add not in st.session_state['menu']:
+            if st.button("➕ Добавить в меню", use_container_width=True):
+                st.session_state['menu'].append(quick_add)
+                st.rerun()
+        else:
+            st.info(f"**{quick_add}** уже в меню.")
+
     if not st.session_state['menu']:
-        st.info("Меню пусто — добавьте блюда выше.")
+        st.info("Меню пусто — добавьте блюда.")
     else:
         for dish in st.session_state['menu']:
-            col1, col2 = st.columns([8, 1])
+            col1, col2 = st.columns(2)
             with col1:
-                st.write(f"• {dish}")
+                st.write(f"• **{dish.upper()}**")
             with col2:
                 if st.button("✕", key=f"del_{dish}"):
                     st.session_state['menu'].remove(dish)
