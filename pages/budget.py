@@ -99,6 +99,10 @@ if isinstance(period, tuple) and len(period) == 2:
             "По годам": "YS"
         }
         freq = group_map[group_choice]
+        if freq == 'D':
+            bar_caption = 'D1'
+        else:
+            bar_caption = 'M1'
 
         df_in_plot = df_in.copy()
         df_out_plot = df_out.copy()    
@@ -161,6 +165,7 @@ if isinstance(period, tuple) and len(period) == 2:
                 type = 'date',
                 showgrid=False,
                 linecolor='#D0D0D0',
+                dtick=bar_caption,
                 tickformat='%d %b',
                 tickmode = 'linear'
             ),
@@ -171,7 +176,7 @@ if isinstance(period, tuple) and len(period) == 2:
                 tickformat=',.0f',
                 zeroline=False
             ),
-            margin=dict(t=80, b=60, l=70, r=20), # Больше места для легенды
+            margin=dict(t=80, b=60, l=75, r=20), # Больше места для легенды
             font=dict(family="sans-serif", size=14)
         )
         st.image(fig_cum.to_image(format="png", scale=3))
@@ -214,6 +219,7 @@ if isinstance(period, tuple) and len(period) == 2:
             ),
             xaxis=dict(
                 type='date',
+                dtick=bar_caption,
                 linecolor='#F0F2F6', 
                 tickformat='%d %b',
                 tickmode="linear",
@@ -251,7 +257,7 @@ if isinstance(period, tuple) and len(period) == 2:
             yaxis_title=None,
             showlegend=False,
             coloraxis_showscale=False,     
-            margin=dict(t=0, b=0, l=200, r=60),
+            margin=dict(t=0, b=0, l=165, r=65),
             height=400 + (len(cat_exp) * 20) 
         )
         st.image(fig.to_image(format="png", scale=3))
