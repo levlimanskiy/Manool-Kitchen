@@ -2,22 +2,20 @@ import streamlit as st
 
 st.set_page_config(page_title="Бюджет Манулиного Домохозяйства", page_icon="📈")
 
-def check_auth():
-    if 'authenticated' not in st.session_state:
-        st.session_state['authenticated'] = False
-    
-    if not st.session_state['authenticated']:
-        st.markdown("# 🔐 Вход")
-        password = st.text_input("Пароль:", type="password")
-        if st.button('Войти'):
-            if password == st.secrets["auth"]["password"]:
-                st.session_state['authenticated'] = True
-                st.rerun()
-            else:
-                st.error("Неверный пароль!")
-        st.stop()
+if 'authenticated' not in st.session_state:
+    st.session_state['authenticated'] = False
 
-check_auth()
+if not st.session_state['authenticated']:
+    st.markdown("# 🔐 Вход")
+    password = st.text_input("Пароль:", type="password")
+    if st.button('Войти'):
+        if password == st.secrets["auth"]["password"]:
+            st.session_state['authenticated'] = True
+            st.rerun()
+        else:
+            st.error("Неверный пароль!")
+    st.navigation([st.Page("pages/budget.py", title="Бюджет", icon="🏠")], position="hidden")
+    st.stop()
 
 with st.sidebar:
     st.markdown("### 🔄 Данные")
