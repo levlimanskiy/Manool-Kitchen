@@ -38,20 +38,38 @@ if edit_mode:
 
     st.subheader("🍳 Рецепты")
     new_dish = st.text_input("Название блюда:")
-    new_prods = st.text_input("Ингредиенты (через запятую):")
+    
     if new_dish.strip():
         exists = new_dish.strip().lower() in df_rec['dish'].str.lower().values
         if exists:
+            default_prods = df_rec[df_rec['dish'].str.lower() == new_dish.strip().lower()]['prod_list'].values[0]
+            calculated_height = max(100, 50 + (len(default_prods) // 2))
+            new_prods = st.text_area("Ингредиенты (через запятую):", value=default_prods, height=calculated_height)
             st.warning(f"**{new_dish}** уже есть в списке.")
-            if st.button("🗑️ Удалить рецепт", use_container_width=True):
-                updated = df_rec[df_rec['dish'].str.lower() != new_dish.strip().lower()]
-                if save_recipes(updated):
-                    st.cache_data.clear()
-                    st.session_state['success'] = True
-                    st.rerun()
-                else:
-                    st.error("Ошибка удаления!")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🗑️ Удалить рецепт", use_container_width=True):
+                    updated = df_rec[df_rec['dish'].str.lower() != new_dish.strip().lower()]
+                    if save_recipes(updated):
+                        st.cache_data.clear()
+                        st.session_state['success'] = True
+                        st.rerun()
+                    else:
+                        st.error("Ошибка удаления!")
+            with col2:
+                no_changes = default_prods.strip() == new_prods.strip() # type: ignore
+                if st.button("📜Изменить рецепт", use_container_width=True, disabled=no_changes):
+                    df_rec.loc[df_rec['dish'].str.lower() == new_dish.lower(), 'prod_list'] = new_prods
+                    updated = df_rec
+                    if save_recipes(updated):
+                        st.cache_data.clear()
+                        st.session_state['success'] = True
+                        st.rerun()
+                    else:
+                        st.error("Ошибка сохранения!")
+
         else:
+            new_prods = st.text_area("Ингредиенты (через запятую):", height=100)
             if not new_prods.strip():
                 st.warning("Напишите список ингредиентов!")
             else:
@@ -70,6 +88,28 @@ if edit_mode:
     if st.session_state.get('success'):
         st.success("✅ Сохранено!")
         del st.session_state['success']
+
+    st.subheader("🔍 Просмотр данных")
+    table = st.radio(
+            "Источник:",
+            ["Ингредиенты", "Рецепты"],
+            index=0,
+            horizontal=True
+        )
+    if 'show_recipes' not in st.session_state:
+        st.session_state.show_recipes = False
+
+    if st.button("📑 Показать/Скрыть", use_container_width=True):
+        st.session_state.show_recipes = not st.session_state.show_recipes
+        st.rerun()
+
+    if st.session_state.show_recipes:
+        if table == 'Ингредиенты':
+            st.dataframe(df_ingr, use_container_width=True, hide_index=True,
+                         column_config={"ingr_id": st.column_config.Column(width=10),
+                                        "ingr": st.column_config.Column(width="large")})
+        else:
+            st.dataframe(df_rec, use_container_width=True, hide_index=True)
 else:
     available = set(df_ingr['ingr'].str.strip().str.lower())
 
@@ -95,15 +135,15 @@ else:
 
     quick_add = st.selectbox(
         "Добавить блюдо в меню:",
-        options=["—"] + sorted(df_rec['dish'].tolist()),
+        options=[""] + sorted(df_rec['dish'].tolist())
     )
-    if quick_add != "—":
+    if quick_add != "":
         if quick_add not in st.session_state['menu']:
             if st.button("➕ Добавить в меню", use_container_width=True):
                 st.session_state['menu'].append(quick_add)
                 st.rerun()
         else:
-            st.info(f"**{quick_add}** уже в меню.")
+            st.info(f"**{quick_add}** добавлен в меню.")
 
     if not st.session_state['menu']:
         st.info("Меню пусто — добавьте блюда.")

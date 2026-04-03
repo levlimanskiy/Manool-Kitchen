@@ -5,13 +5,13 @@ from data_loader import get_data, get_categories, update_rows, delete_rows
 
 config_days={
     "date": st.column_config.DateColumn("Дата", format="DD.MM.YYYY"),
-    "Расходы": st.column_config.NumberColumn("Расходы", format="%,.0f ₽"),
-    "Доходы": st.column_config.NumberColumn("Доходы", format="%,.0f ₽")
+    "Расходы": st.column_config.NumberColumn("Расходы", format="%,.2f ₽"),
+    "Доходы": st.column_config.NumberColumn("Доходы", format="%,.2f ₽")
 }
 
 config_months={
-    "Расходы": st.column_config.NumberColumn("Расходы", format="%,.0f ₽"),
-    "Доходы": st.column_config.NumberColumn("Доходы", format="%,.0f ₽")
+    "Расходы": st.column_config.NumberColumn("Расходы", format="%,.2f ₽"),
+    "Доходы": st.column_config.NumberColumn("Доходы", format="%,.2f ₽")
 }
 
 config_raw={
@@ -19,7 +19,7 @@ config_raw={
     "date": st.column_config.DateColumn("Дата", format="DD.MM.YYYY"),
     "type": st.column_config.SelectboxColumn("Тип", options=[0, 1]),
     "category": st.column_config.TextColumn("Категория"),
-    "amount": st.column_config.NumberColumn("Сумма", min_value=0, step=1, format="%,.0f ₽"),
+    "amount": st.column_config.NumberColumn("Сумма", format="%,.2f ₽"),
     "info": st.column_config.TextColumn("Примечание"),
 }
 
@@ -72,8 +72,9 @@ if view_mode == "По дням":
         .sum()
         .unstack(fill_value=0)
         .rename(columns={0: 'Расходы', 1: 'Доходы'})
+        [['Доходы', 'Расходы']] 
         .reset_index()
-        .sort_values('date', ascending=False)
+        .sort_values('date', ascending=True)
     )
     st.dataframe(df_grouped, use_container_width=True, hide_index=True, column_config=config_days)
 
@@ -87,7 +88,9 @@ elif view_mode == "По месяцам":
         .sum()
         .unstack(fill_value=0)
         .rename(columns={0: 'Расходы', 1: 'Доходы'})
+        [['Доходы', 'Расходы']] 
         .reset_index()
+        .sort_values('date', ascending=True)
     )
     df_grouped['date'] = df_grouped['date'].apply(
         lambda d: f"{months_list[d.month]} {d.year}"
@@ -99,7 +102,7 @@ else:
     edit_mode = st.toggle("✏️ Режим редактирования")
 
     display_cols = ['id', 'date', 'type', 'category', 'amount', 'info']
-    df_display = df_filt[display_cols].sort_values('date', ascending=False)
+    df_display = df_filt[display_cols].sort_values('id', ascending=True)
     
     if not edit_mode:
         st.dataframe(df_display, use_container_width=True, hide_index=True, column_config=config_raw)
@@ -112,7 +115,7 @@ else:
             "date": st.column_config.DateColumn("Дата", format="DD.MM.YYYY"),
             "type": st.column_config.SelectboxColumn("Тип", options=[0, 1]),
             "category": st.column_config.SelectboxColumn("Категория", options=cat_options),
-            "amount": st.column_config.NumberColumn("Сумма", min_value=0, step=1, format="%,.0f ₽"),
+            "amount": st.column_config.NumberColumn("Сумма", min_value=0, step=1, format="%,.2f ₽"),
             "info": st.column_config.TextColumn("Примечание"),
         }
 
