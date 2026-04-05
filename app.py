@@ -20,9 +20,9 @@ if not st.session_state['authenticated']:
 with st.sidebar:
     st.markdown("### 🔄 Данные")
     if st.button("Обновить из базы", use_container_width=True):
-        st.cache_data.clear()  
+        st.cache_data.clear()
         st.success("Обновлено!")
-        st.rerun()             
+        st.rerun()
     st.divider()
 
 # Define the pages

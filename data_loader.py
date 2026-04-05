@@ -86,6 +86,25 @@ def save_recipes(df):
     except Exception as e:
         return False
 
+@st.cache_data(ttl=1200)
+def get_menu():
+    menu = conn.read(spreadsheet=sheet_url, worksheet='menu')
+    if not menu.empty:
+        return menu
+    else:
+        return pd.DataFrame(columns=['dish_list'])
+
+def update_menu(menu):
+    try:
+        conn.update(worksheet='menu', data=menu)
+        return True
+    except Exception as e:
+        return False
+
+
+
+
+
 
 
     

@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from data_loader import get_prods, save_ingredients, save_recipes
+from data_loader import get_prods, save_ingredients, save_recipes, get_menu, update_menu
 
 st.markdown("# 🛒 Продукты и рецепты")
 df_ingr, df_rec = get_prods()
@@ -34,6 +34,11 @@ if edit_mode:
                     st.rerun()
                 else:
                     st.error("Ошибка сохранения!")
+                    
+    if st.session_state.get('success'):
+        st.success("✅ Сохранено!")
+        del st.session_state['success']
+        
     st.divider()
 
     st.subheader("🍳 Рецепты")
@@ -130,8 +135,10 @@ else:
     # Блок 1: меню
     st.subheader("📋 Меню")
 
+    menu = get_menu()
+
     if 'menu' not in st.session_state:
-        st.session_state['menu'] = []
+        st.session_state['menu'] = menu['dish_list'].to_list()
 
     quick_add = st.selectbox(
         "Добавить блюдо в меню:",
@@ -145,6 +152,7 @@ else:
         else:
             st.info(f"**{quick_add}** добавлен в меню.")
 
+
     if not st.session_state['menu']:
         st.info("Меню пусто — добавьте блюда.")
     else:
@@ -157,6 +165,20 @@ else:
                     st.session_state['menu'].remove(dish)
                     st.rerun()
 
+    if st.button("📌 Сохранить", use_container_width=True):
+        menu = pd.DataFrame({'dish_list': st.session_state['menu']})
+        if update_menu(menu):
+            st.cache_data.clear()
+            st.session_state['success'] = True
+            st.rerun()
+        else:
+            st.error("Ошибка сохранения!")
+
+    if st.session_state.get('success'):
+        st.success("✅ Сохранено!")
+        del st.session_state['success']
+
+    st.divider()
     # Блок 2: что приготовить?
     st.subheader("🍳 Что можно приготовить")
 
@@ -187,6 +209,9 @@ else:
         st.info("Добавьте блюда в меню, чтобы увидеть список покупок.")
     else:
         to_buy = {}
+        if 'checks' not in st.session_state:
+            st.session_state['checks'] = set()
+
         for dish in st.session_state['menu']:
             row = df_rec[df_rec['dish'] == dish]
             if not row.empty:
@@ -201,7 +226,38 @@ else:
             st.success("Все ингредиенты уже есть! 🎉")
         else:
             for ingr, dishes in sorted(to_buy.items()):
-                dishes_str = ", ".join(dishes)
-                st.write(f"• **{ingr.capitalize()}** ({dishes_str})")
+                col1, col2 = st.columns(2)
+                with col1:
+                    dishes_str = ", ".join(dishes)
+                    st.write(f"• **{ingr.capitalize()}** ({dishes_str})")
+                with col2:
+                    is_checked = st.checkbox("", key=f"check_{ingr}", value=(ingr in st.session_state['checks']))
+
+                    if is_checked:
+                        st.session_state['checks'].add(ingr)
+                    else:
+                        st.session_state['checks'].discard(ingr)
+
+        if st.session_state['checks']:
+            selected_list = list(st.session_state['checks'])
+            if st.button("☑️ Куплено", use_container_width=True):
+                last_id = int(df_ingr['ingr_id'].max()) if not df_ingr.empty else 0
+                new_rows_list = []
+                for i, ingr in enumerate(selected_list):
+                    new_rows_list.append({
+                        'ingr_id': last_id + 1 + i,
+                        'ingr': ingr
+                    })
+                new_df = pd.DataFrame(new_rows_list)
+                upd = pd.concat([df_ingr, new_df], ignore_index=True)
+
+                if save_ingredients(upd):
+                    st.session_state.to_buy_checked = set()
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    st.error("Ошибка!")
+
+
 
 
