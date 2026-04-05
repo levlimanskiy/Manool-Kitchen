@@ -232,8 +232,8 @@ if isinstance(period, tuple) and len(period) == 2:
 
         st.divider()
 
-        # Блок 4: круговая диаграмма категорий
-        st.subheader("🍕 Распределение трат")
+        # Блок 4: распределение трат
+        st.subheader("🗂️ Распределение трат")
         cat_exp = df_out.groupby('category')['amount'].sum().reset_index()
         cat_exp = cat_exp.sort_values(by='amount', ascending=True) # Asc=True для красивого топа на графике
 
@@ -259,6 +259,38 @@ if isinstance(period, tuple) and len(period) == 2:
             coloraxis_showscale=False,     
             margin=dict(t=0, b=0, l=165, r=65),
             height=400 + (len(cat_exp) * 20) 
+        )
+        st.image(fig.to_image(format="png", scale=3))
+
+        st.divider()
+
+        # Блок 5: распределение доходов
+        st.subheader("⚖️ Распределение доходов")
+        cat_prof = df_in.groupby('category')['amount'].sum().reset_index()
+        cat_prof = cat_prof.sort_values(by='amount', ascending=True)  # Asc=True для красивого топа на графике
+
+        fig = px.bar(
+            cat_prof,
+            x='amount',
+            y='category',
+            orientation='h',
+            text='amount',
+            labels={'amount': 'Сумма', 'category': 'Категория'},
+            color='amount',
+            color_continuous_scale='RdBu'
+        )
+        fig.update_traces(
+            texttemplate='%{text:,.2f} ₽',
+            textposition='outside',
+            cliponaxis=False
+        )
+        fig.update_layout(
+            xaxis_title=None,
+            yaxis_title=None,
+            showlegend=False,
+            coloraxis_showscale=False,
+            margin=dict(t=0, b=0, l=165, r=65),
+            height=400 + (len(cat_exp) * 20)
         )
         st.image(fig.to_image(format="png", scale=3))
 
