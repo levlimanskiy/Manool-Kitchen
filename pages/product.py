@@ -226,17 +226,15 @@ else:
             st.success("Все ингредиенты уже есть! 🎉")
         else:
             for ingr, dishes in sorted(to_buy.items()):
-                col1, col2 = st.columns(2)
-                with col1:
-                    dishes_str = ", ".join(dishes)
-                    st.write(f"• **{ingr.capitalize()}** ({dishes_str})")
-                with col2:
-                    is_checked = st.checkbox("", key=f"check_{ingr}", value=(ingr in st.session_state['checks']))
 
-                    if is_checked:
-                        st.session_state['checks'].add(ingr)
-                    else:
-                        st.session_state['checks'].discard(ingr)
+                dishes_str = ", ".join(dishes)
+                dish_label = f" **{ingr.capitalize()}** ({dishes_str})"
+                is_checked = st.checkbox(dish_label, key=f"check_{ingr}", value=(ingr in st.session_state['checks']))
+
+                if is_checked:
+                    st.session_state['checks'].add(ingr)
+                else:
+                    st.session_state['checks'].discard(ingr)
 
         if st.session_state['checks']:
             selected_list = list(st.session_state['checks'])
