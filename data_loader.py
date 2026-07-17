@@ -1,122 +1,127 @@
+import sqlite3
 import streamlit as st
 import pandas as pd
-from streamlit_gsheets import GSheetsConnection
+from datetime import date
+import os
 
-sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-conn = st.connection("gsheets", type=GSheetsConnection)
+DB_PATH = os.path.join(os.path.dirname(__file__), "data", "manool-kitchen.db")
+
+def get_conn():
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
+
+# --- Transactions ---
 
 @st.cache_data(ttl=1200)
 def get_data():
-    df_trans = conn.read(spreadsheet=sheet_url, worksheet="transactions", ttl=0)
-    df_cats = conn.read(spreadsheet=sheet_url, worksheet="categories", ttl=0)
-
+    with get_conn() as conn:
+        df_trans = pd.read_sql("SELECT * FROM transactions", conn)
+        df_cats = pd.read_sql("SELECT * FROM categories", conn)
     df_trans['date'] = pd.to_datetime(df_trans['date'], dayfirst=True).dt.date
-    
+    df_trans['amount'] = df_trans['amount'].astype(float)
     if not df_trans.empty:
-        df_raw = pd.merge(df_trans, df_cats, on='category_id')
-        return df_raw
-    
-    return pd.DataFrame() 
+        return pd.merge(df_trans, df_cats, on='category_id')
+    return pd.DataFrame()
 
 @st.cache_data(ttl=1200)
 def get_categories():
-    df_cats = conn.read(spreadsheet=sheet_url, worksheet="categories", ttl=0)
-    
-    if not df_cats.empty:
-        return df_cats
-    
-    return pd.DataFrame() 
+    with get_conn() as conn:
+        df = pd.read_sql("SELECT * FROM categories", conn)
+    return df if not df.empty else pd.DataFrame()
 
 def write_row(row):
-    df_trans = conn.read(spreadsheet=sheet_url, worksheet="transactions", ttl=0)
-    upd = pd.concat([df_trans, row], ignore_index=True)
     try:
-        conn.update(worksheet="transactions", data=upd)
+        with get_conn() as conn:
+            row.to_sql("transactions", conn, if_exists='append', index=False)
         return True
     except Exception as e:
         return False
 
 def update_rows(df_upd, df_cats):
-    df_trans = conn.read(spreadsheet=sheet_url, worksheet="transactions", ttl=0)
-
     cat_map = dict(zip(df_cats['category'], df_cats['category_id']))
     df_upd = df_upd.copy()
     df_upd['category_id'] = df_upd['category'].map(cat_map)
-
-    df_trans = df_trans.set_index('id')
-    df_upd = df_upd.set_index('id')
-    cols_to_update = ['date', 'amount', 'info', 'category_id']
-    df_trans.loc[df_upd.index, cols_to_update] = df_upd[cols_to_update]
-    df_trans = df_trans.reset_index()
-
-    df_trans['date'] = pd.to_datetime(df_trans['date'], dayfirst=True).dt.strftime('%d.%m.%Y')
-
+    df_upd['date'] = pd.to_datetime(df_upd['date'], dayfirst=True).dt.strftime('%d.%m.%Y')
     try:
-        conn.update(worksheet="transactions", data = df_trans)
+        with get_conn() as conn:
+            cursor = conn.cursor()
+            for _, row in df_upd.iterrows():
+                cursor.execute("""
+                    UPDATE transactions
+                    SET date=?, amount=?, info=?, category_id=?
+                    WHERE id=?
+                """, (row['date'], row['amount'], row['info'], row['category_id'], row['id']))
         return True
     except Exception as e:
         return False
-    
+
 def delete_rows(ids: list):
-    df_trans = conn.read(spreadsheet=sheet_url, worksheet="transactions", ttl=0)
-    df_trans = df_trans[~df_trans['id'].isin(ids)]
     try:
-        conn.update(worksheet="transactions", data=df_trans)
+        with get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.executemany(
+                "DELETE FROM transactions WHERE id=?",
+                [(i,) for i in ids]
+            )
         return True
     except Exception as e:
         return False
+
+# --- Products ---
 
 @st.cache_data(ttl=1200)
 def get_prods():
-    df_ingr = conn.read(spreadsheet=sheet_url, worksheet='ingredients')
-    df_rec = conn.read(spreadsheet=sheet_url, worksheet='recipes')
+    with get_conn() as conn:
+        df_ingr = pd.read_sql("SELECT * FROM ingredients", conn)
+        df_rec = pd.read_sql("SELECT * FROM recipes", conn)
     return df_ingr, df_rec
 
 def save_ingredients(df):
     try:
-        conn.update(worksheet="ingredients", data=df)
+        with get_conn() as conn:
+            df.to_sql("ingredients", conn, if_exists='replace', index=False)
         return True
     except Exception as e:
         return False
 
 def save_recipes(df):
     try:
-        conn.update(worksheet="recipes", data=df)
+        with get_conn() as conn:
+            df.to_sql("recipes", conn, if_exists='replace', index=False)
         return True
     except Exception as e:
         return False
+
+# --- Menu ---
 
 @st.cache_data(ttl=1200)
 def get_menu():
-    menu = conn.read(spreadsheet=sheet_url, worksheet='menu')
-    if not menu.empty:
-        return menu
-    else:
-        return pd.DataFrame(columns=['dish_list'])
+    with get_conn() as conn:
+        df = pd.read_sql("SELECT * FROM menu", conn)
+    return df if not df.empty else pd.DataFrame(columns=['dish_list'])
 
 def update_menu(menu):
     try:
-        conn.update(worksheet='menu', data=menu)
+        with get_conn() as conn:
+            menu.to_sql("menu", conn, if_exists='replace', index=False)
         return True
     except Exception as e:
         return False
+
+# --- Todos ---
 
 @st.cache_data(ttl=1200)
 def get_todos():
-    df = conn.read(spreadsheet=sheet_url, worksheet="todos")
-    if not df.empty:
-        return df
-    return pd.DataFrame(columns=['todo_id', 'text', 'date', 'priority', 'author'])
+    with get_conn() as conn:
+        df = pd.read_sql("SELECT * FROM todos", conn)
+    return df if not df.empty else pd.DataFrame(columns=['todo_id', 'text', 'date', 'priority', 'author'])
 
 def save_todos(df):
-    conn = st.connection("gsheets", type=GSheetsConnection)
     try:
-        conn.update(worksheet="todos", data=df)
+        with get_conn() as conn:
+            df.to_sql("todos", conn, if_exists='replace', index=False)
         return True
     except Exception as e:
         return False
-
-
 
 
 

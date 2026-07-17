@@ -16,3 +16,6 @@ __pycache__/
 
 # Кэш Streamlit (иногда создается локально)
 .streamlit/cache/
+
+# БД
+data/

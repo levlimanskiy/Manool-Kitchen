@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    restart: always
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DB_PATH=/app/data/manool.db
