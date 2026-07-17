@@ -131,7 +131,7 @@ else:
     df_rec[['score', 'score_raw', 'ratio', 'needed_set']] = pd.DataFrame(
     df_rec['prod_list'].apply(lambda x: pd.Series(score_recipe(x))))
 
-    df_rec_10 = df_rec.sort_values('score_raw', ascending=False).head(10)
+    df_rec_10 = df_rec.sort_values('score_raw', ascending=False).head(20)
 
     # Блок 1: меню
     st.subheader("📋 Меню")
