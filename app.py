@@ -30,9 +30,10 @@ budget = st.Page("pages/budget.py", title="Бюджет", icon="🏠")
 trans = st.Page("pages/trans.py", title="Внести транзакцию", icon="🧮")
 table = st.Page("pages/table.py", title="Список транзакций", icon="📋")
 product = st.Page("pages/product.py", title="Продукты", icon = "🛒")
+todo = st.Page("pages/todo.py", title="Доска заметок", icon="📝")
 
 # Set up navigation
-pg = st.navigation([budget, trans, table, product])
+pg = st.navigation([budget, trans, table, product, todo])
 
 # Run the selected page
 pg.run()

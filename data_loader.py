@@ -101,7 +101,20 @@ def update_menu(menu):
     except Exception as e:
         return False
 
+@st.cache_data(ttl=1200)
+def get_todos():
+    df = conn.read(spreadsheet=sheet_url, worksheet="todos")
+    if not df.empty:
+        return df
+    return pd.DataFrame(columns=['todo_id', 'text', 'date', 'priority', 'author'])
 
+def save_todos(df):
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    try:
+        conn.update(worksheet="todos", data=df)
+        return True
+    except Exception as e:
+        return False
 
 
 

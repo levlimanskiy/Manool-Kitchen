@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from data_loader import get_prods, save_ingredients, save_recipes, get_menu, update_menu
+import math
 
 st.markdown("# 🛒 Продукты и рецепты")
 df_ingr, df_rec = get_prods()
@@ -121,14 +122,14 @@ else:
     def score_recipe(prod_list_str):
         needed = set(p.strip().lower() for p in str(prod_list_str).split(', '))
         if not needed:
-            return 0.0, needed
+            return "0 / 0", 0.0, needed
         match = needed & available
-        return f"{len(match)} / {len(needed)}", len(match) / len(needed), needed
+        ratio = len(match) / len(needed)
+        weighted = ratio * math.log(len(needed) + 1)
+        return f"{len(match)} / {len(needed)}", weighted, ratio, needed
 
-    df_rec = df_rec.copy()
-    df_rec[['score', 'score_raw', 'needed_set']] = pd.DataFrame(
-        df_rec['prod_list'].apply(lambda x: pd.Series(score_recipe(x)))
-    )
+    df_rec[['score', 'score_raw', 'ratio', 'needed_set']] = pd.DataFrame(
+    df_rec['prod_list'].apply(lambda x: pd.Series(score_recipe(x))))
 
     df_rec_10 = df_rec.sort_values('score_raw', ascending=False).head(10)
 
@@ -179,13 +180,14 @@ else:
         del st.session_state['success']
 
     st.divider()
+
     # Блок 2: что приготовить?
     st.subheader("🍳 Что можно приготовить")
 
-    def score_emoji(score):
-        if score == 1.0:
+    def score_emoji(ratio):
+        if ratio == 1.0:
             return "🟢"
-        elif score >= 0.5:
+        elif ratio >= 0.5:
             return "🟡"
         else:
             return "🔴"
@@ -193,7 +195,7 @@ else:
     for _, row in df_rec_10.iterrows():
         col1, col2 = st.columns(2)
         with col1:
-            st.write(f"{score_emoji(row['score_raw'])} **{row['dish'].capitalize()}** — {row['score']}")
+            st.write(f"{score_emoji(row['ratio'])} **{row['dish'].capitalize()}** — {row['score']}")
         with col2:
             if st.button("+ В меню", key=f"add_{row['rec_id']}"):
                 if row['dish'] not in st.session_state['menu']:
@@ -239,22 +241,30 @@ else:
         if st.session_state['checks']:
             selected_list = list(st.session_state['checks'])
             if st.button("☑️ Куплено", use_container_width=True):
+                existing = set(df_ingr['ingr'].str.lower())
                 last_id = int(df_ingr['ingr_id'].max()) if not df_ingr.empty else 0
                 new_rows_list = []
-                for i, ingr in enumerate(selected_list):
-                    new_rows_list.append({
-                        'ingr_id': last_id + 1 + i,
-                        'ingr': ingr
-                    })
-                new_df = pd.DataFrame(new_rows_list)
-                upd = pd.concat([df_ingr, new_df], ignore_index=True)
+                counter = 0
+                for ingr in selected_list:
+                    if ingr.lower() not in existing:
+                        new_rows_list.append({
+                            'ingr_id': last_id + 1 + counter,
+                            'ingr': ingr
+                        })
+                        counter += 1
 
-                if save_ingredients(upd):
-                    st.session_state.to_buy_checked = set()
-                    st.cache_data.clear()
-                    st.rerun()
+                if new_rows_list:
+                    new_df = pd.DataFrame(new_rows_list)
+                    upd = pd.concat([df_ingr, new_df], ignore_index=True)
+                    if save_ingredients(upd):
+                        st.session_state['checks'] = set()  # ← correct key
+                        st.cache_data.clear()
+                        st.rerun()
+                    else:
+                        st.error("Ошибка!")
                 else:
-                    st.error("Ошибка!")
+                    st.session_state['checks'] = set()
+                    st.rerun()
 
 
 

@@ -71,6 +71,7 @@ if view_mode == "По дням":
         df_filt.groupby(['date', 'type'])['amount']
         .sum()
         .unstack(fill_value=0)
+        .reindex(columns=[0, 1], fill_value=0)
         .rename(columns={0: 'Расходы', 1: 'Доходы'})
         [['Доходы', 'Расходы']] 
         .reset_index()
@@ -87,6 +88,7 @@ elif view_mode == "По месяцам":
         df_m.groupby([pd.Grouper(freq='MS'), 'type'])['amount']
         .sum()
         .unstack(fill_value=0)
+        .reindex(columns=[0, 1], fill_value=0)
         .rename(columns={0: 'Расходы', 1: 'Доходы'})
         [['Доходы', 'Расходы']] 
         .reset_index()
@@ -115,7 +117,7 @@ else:
             "date": st.column_config.DateColumn("Дата", format="DD.MM.YYYY"),
             "type": st.column_config.SelectboxColumn("Тип", options=[0, 1]),
             "category": st.column_config.SelectboxColumn("Категория", options=cat_options),
-            "amount": st.column_config.NumberColumn("Сумма", min_value=0, step=1, format="%,.2f ₽"),
+            "amount": st.column_config.NumberColumn("Сумма", min_value=0, step=0.01, format="%,.2f ₽"),
             "info": st.column_config.TextColumn("Примечание"),
         }
 
@@ -126,6 +128,10 @@ else:
             num_rows="dynamic",
             column_config=config_edt
         )
+
+        if st.session_state.get('success'):
+            st.success("✅ Сохранено!")
+            del st.session_state['success']
 
         if st.button("💾 Сохранить изменения", use_container_width=True):
             # Удаленные
@@ -146,7 +152,3 @@ else:
                 st.rerun()
             else:
                 st.error("Ошибка сохранения!")
-
-        if st.session_state.get('success'):
-            st.success("✅ Сохранено!")
-            del st.session_state['success']
